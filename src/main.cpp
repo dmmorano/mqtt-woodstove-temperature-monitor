@@ -8,8 +8,8 @@ const int ktcCS = 12;
 const int ktcSO = 13;
 MAX6675 ktc(ktcCLK, ktcCS, ktcSO);
 
-const char* ssid = "Weavery";
-const char* password = "HiddenValley";
+const char* ssid = "AVS";
+const char* password = "freshkayak107";
 const char* mqtt_server = "broker.hivemq.com";
 
 const char* stoveTempTag = "Weavery_dmm/UpperStoveTemp";
@@ -18,19 +18,41 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 
+void processIncomingSerialData() {
+  if (Serial.available()>0)
+  {
+    String data = Serial.readString();
+    Serial.println(data);
+    
+    if(data.indexOf("set wifissid") > 0) {
+      String ssid = data.substring(13);
+      Serial.print("SSID Changed to: ");
+      Serial.println(ssid);
+    }
+    if(data.indexOf("set wifipass") > 0) {
+      String pass = data.substring(13);
+      Serial.print("Pass Changed to: ");
+      Serial.println(pass);
+    }
+
+  }
+
+}
 void setup_wifi() {
 
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.print("Connecting to WiFi Network");
+
 
   WiFi.begin(ssid, password);
-
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(2000);
+    Serial.println("Failed To Connect.");
+    Serial.println("Have you ran 'set wifissid [SSID]' as well as 'set wifipass [KEY]'?");
+    processIncomingSerialData();
+
   }
   
   randomSeed(micros());
@@ -87,6 +109,8 @@ void reconnect() {
 }
 void loop() {
 
+  processIncomingSerialData();
+  
   if (!mqttClient.connected()) {
     reconnect();
   }
