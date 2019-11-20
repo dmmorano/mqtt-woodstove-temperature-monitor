@@ -8,8 +8,8 @@ const int ktcCS = 12;
 const int ktcSO = 13;
 MAX6675 ktc(ktcCLK, ktcCS, ktcSO);
 
-const char* ssid = "AVS";
-const char* password = "freshkayak107";
+const char* ssid = "Weavery";
+const char* password = "HiddenValley";
 const char* mqtt_server = "broker.hivemq.com";
 
 const char* stoveTempTag = "Weavery_dmm/UpperStoveTemp";
