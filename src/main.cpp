@@ -1,15 +1,24 @@
+#include <Arduino.h>
+//#include <ArduinoJson.h>
+#include <ESP8266Wifi.h>
+#include <WiFiClientSecure.h>
+#include <ESP8266HTTPClient.h>
 #include <max6675.h>
 #include <Wire.h>
-#include <ESP8266Wifi.h>
+
 #include <PubSubClient.h>
+//#include <FirebaseArduino.h>
+#include <FirebaseESP8266.h>
+
+#include <creds.h>
 
 const int ktcCLK = 14;
 const int ktcCS = 12;
 const int ktcSO = 13;
 MAX6675 ktc(ktcCLK, ktcCS, ktcSO);
 
-const char* ssid = "AVS";
-const char* password = "freshkayak107";
+const char* ssid = "Weavery";
+const char* password = "HiddenValley";
 const char* mqtt_server = "broker.hivemq.com";
 
 const char* stoveTempTag = "Weavery_dmm/UpperStoveTemp";
@@ -17,6 +26,51 @@ const char* stoveTempTag = "Weavery_dmm/UpperStoveTemp";
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
+FirebaseData firebasedata;
+
+void sendTemptToFirebase(String temp);
+void processIncomingSerialData();
+void setup_wifi();
+void mqtt_callback(char* topic, byte* payload, unsigned int length);
+void reconnect();
+void sendTemptToFirebase(String temp);
+
+ void setup() {
+  setup_wifi();
+  Serial.begin(9600);
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  mqttClient.setServer(mqtt_server, 1883);
+  mqttClient.setCallback(mqtt_callback);
+  delay(2000);
+
+}
+void loop() {
+
+  processIncomingSerialData();
+  
+  if (!mqttClient.connected()) {
+    reconnect();
+  }
+  mqttClient.loop();
+
+  // Read temperature as Celsius in to a char array (msg)_
+  float DF = ktc.readFahrenheit();
+  String tempString = String(DF,0);
+  char msg[tempString.length() + 1];
+  tempString.toCharArray(msg, tempString.length() + 1);
+
+  Serial.print("Tempurature: ");
+  Serial.println(msg);
+
+  Serial.print("Publish message: ");
+  Serial.print(msg);
+  Serial.print(" to ");
+  Serial.println(stoveTempTag);
+
+  mqttClient.publish("Weavery_dmm/UpperStoveTemp", msg);
+  sendTemptToFirebase(tempString);
+  delay(10000);
+}
 
 void processIncomingSerialData() {
   if (Serial.available()>0)
@@ -98,39 +152,22 @@ void reconnect() {
     }
   }
 }
- 
- void setup() {
-  setup_wifi();
-  Serial.begin(9600);
-  mqttClient.setServer(mqtt_server, 1883);
-  mqttClient.setCallback(mqtt_callback);
-  delay(2000);
 
-}
-void loop() {
+// void sendTemptToFirebase(String temp) {
+//     String gasStatusID = Firebase.pushString("stovemonitor/temp", temp);
+//     if (Firebase.failed()) {
+//       Serial.print("[ERROR] pushing stovemonitor/temp failed:");
+//       Serial.println(Firebase.error());
+//     return;
+//   }
+// }
 
-  processIncomingSerialData();
-  
-  if (!mqttClient.connected()) {
-    reconnect();
+void sendTemptToFirebase(String temp) {
+    bool success = Firebase.pushString(firebasedata,"stovemonitor/temp", temp);
+    if (success) {
+      Serial.println("Pushed to Firebase");
+  } else {
+      Serial.println("[ERROR] pushing stovemonitor/temp failed:");
+    return;
   }
-  mqttClient.loop();
-
-  // Read temperature as Celsius in to a char array (msg)_
-  float DF = ktc.readFahrenheit();
-  String tempString = String(DF,0);
-  char msg[tempString.length() + 1];
-  tempString.toCharArray(msg, tempString.length() + 1);
-
-  Serial.print("Tempurature: ");
-  Serial.println(msg);
-
-  Serial.print("Publish message: ");
-  Serial.print(msg);
-  Serial.print(" to ");
-  Serial.println(stoveTempTag);
-
-  mqttClient.publish("Weavery_dmm/UpperStoveTemp", msg);
-  delay(10000);
 }
- 
